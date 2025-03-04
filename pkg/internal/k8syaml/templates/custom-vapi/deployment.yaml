@@ -1,0 +1,143 @@
+{{- range $index, $vapi := .CustomVapis }}
+{{- if ne $index 0}}
+---
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: custom-vapi-{{ $vapi.ID }}
+  namespace: "{{ $.Stack.Namespace }}"
+  labels:
+    shaple.io/project.name: "{{ $.Project.Name | toLabel }}"
+    shaple.io/project.id: "{{ $.Project.ID }}"
+    shaple.io/stack.name: "{{ $.Stack.Name | toLabel }}"
+    shaple.io/stack.id: "{{ $.Stack.ID }}"
+    shaple.io/component: custom-vapi
+    shaple.io/vapi.id: "{{ $vapi.ID }}"
+spec:
+  selector:
+    matchLabels:
+      shaple.io/project.id: "{{ $.Project.ID }}"
+      shaple.io/stack.id: "{{ $.Stack.ID }}"
+      shaple.io/component: custom-vapi
+      shaple.io/vapi.id: "{{ $vapi.ID }}"
+  template:
+    metadata:
+      labels:
+        shaple.io/project.id: "{{ $.Project.ID }}"
+        shaple.io/stack.id: "{{ $.Stack.ID }}"
+        shaple.io/component: custom-vapi
+        shaple.io/vapi.id: "{{ $vapi.ID }}"
+        shaple.io/pod: "vapi-{{ $vapi.ID }}-{{ $.Stack.Hash }}"
+        shaple.io/updated-at: "{{ now.Format "2006-01-02T15.04.05Z" }}"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: "shaple.io/pod"
+                      operator: In
+                      values:
+                        - "vapi-{{ $vapi.ID }}-{{ $.Stack.Hash }}"
+                topologyKey: "kubernetes.io/hostname"
+              weight: 90
+      nodeSelector:
+        stacks: "true"
+      containers:
+        - name: main
+          image: "supabase/edge-runtime:v1.33.5"
+          args: ["start", "--main-service", "_vapi"]
+          workingDir: /workspace
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: custom-vapi-{{ $vapi.ID }}
+          env:
+            - name: HOME
+              value: "/workspace"
+            - name: SHAPLE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: custom-vapi-{{ $vapi.ID }}
+                  key: SHAPLE_URL
+          ports:
+            - name: http
+              containerPort: 9000
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /workspace
+              name: workspace
+          resources:
+            limits:
+              memory: 128Mi
+          startupProbe:
+            httpGet:
+              path: /_internal/health
+              port: http
+            initialDelaySeconds: 1
+            periodSeconds: 2
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /_internal/health
+              port: http
+            initialDelaySeconds: 1
+            periodSeconds: 2
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 3
+      initContainers:
+        - name: init-container
+          image: alpine:3.19
+          workingDir: /workspace
+          env:
+            - name: SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: custom-vapi-{{ $vapi.ID }}
+                  key: SHAPLE_ADMIN_KEY
+            - name: SHAPLE_ENV
+              value: "{{ $.ShapleEnv }}"
+            - name: PACKAGE_TAR_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: custom-vapi-{{ $vapi.ID }}
+                  key: TAR_FILE_URL
+          command: [ 'sh', '-e', '-c' ]
+          args:
+            - |
+              export PACKAGE_TAR="/tmp/vapi_package.tar"
+              
+              if [[ "${SHAPLE_ENV}" == "test" ]]; then
+                export TRAEFIK_IP_ADDR=$(nslookup traefik.default.svc.cluster.local | awk '/^Address: / { print $2 }' | head -1)
+                echo "${TRAEFIK_IP_ADDR}    {{ $.Stack.Domain }}" >> /etc/hosts
+              fi
+              
+              wget -O "${PACKAGE_TAR}" "${PACKAGE_TAR_URL}"
+              echo "Downloaded package: ${PACKAGE_TAR}"
+              
+              tar -xf "${PACKAGE_TAR}" -C .
+              rm "${PACKAGE_TAR}"
+              
+              mkdir ./_vapi
+              cp -f /tmp/_vapi_main.ts ./_vapi/index.ts
+          volumeMounts:
+            - mountPath: "/workspace"
+              name: workspace
+            - mountPath: /tmp/_vapi_main.ts
+              name: main-file
+              subPath: _vapi_main.ts
+      volumes:
+        - name: workspace
+          emptyDir: {}
+        - name: main-file
+          configMap:
+            name: common
+            items:
+              - key: _vapi_main.ts
+                path: _vapi_main.ts
+{{- end }}

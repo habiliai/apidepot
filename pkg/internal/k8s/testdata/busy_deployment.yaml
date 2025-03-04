@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: busy
+  labels:
+    app: busy
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: busy
+  template:
+    metadata:
+      labels:
+        app: busy
+        group: testdata
+    spec:
+      terminationGracePeriodSeconds: 0
+      containers:
+        - name: main
+          image: busybox
+          command: ["sh", "-c"]
+          args:
+            - |
+              echo "Hello, world!"
+              touch a.txt
+              tail -f a.txt

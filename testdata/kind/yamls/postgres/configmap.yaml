@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-initdb
+  labels:
+    app: postgres
+  namespace: default
+data:
+  init-db.sh: |
+    #!/bin/bash
+    set -e
+    echo "Altering user..."
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+      alter user postgres with password 'postgres' superuser createrole bypassrls;
+
+      create role anon noinherit nologin;
+      create role authenticated noinherit nologin;
+      create role service_role noinherit nologin bypassrls;
+    EOSQL
+    echo "User altered!"
+
+    echo "Initializing database..."
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+      create database test;
+      grant all privileges on database test to postgres;
+      
+      create schema if not exists apidepot;
+    EOSQL
+
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "test" <<-EOSQL
+      create schema if not exists apidepot;
+    EOSQL
+    echo "Database initialized!"

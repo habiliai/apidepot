@@ -1,0 +1,134 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gotrue-test
+  labels:
+    app: gotrue-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gotrue-test
+  template:
+    metadata:
+      labels:
+        app: gotrue-test
+        group: apidepot
+    spec:
+      initContainers:
+        - name: pg-isready
+          image: postgres:14-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DB_HOST
+              value: "postgres.default.svc.cluster.local"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: "postgres"
+            - name: DB_NAME
+              value: "test"
+            - name: DB_SSL
+              value: "disable"
+            - name: DB_URL
+              value: postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSL)
+          command: [ "/bin/sh", "-c" ]
+          args:
+            - |
+              until pg_isready -h $(DB_HOST) -p $(DB_PORT) -U $(DB_USER); do
+                echo "Waiting for database to start..."
+                sleep 2
+              done
+              echo "Database is ready"
+              
+              psql -v ON_ERROR_STOP=1 $(DB_URL) <<-EOSQL
+                CREATE SCHEMA IF NOT EXISTS auth;
+                GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;
+              EOSQL
+      containers:
+        - name: gotrue
+          image: supabase/gotrue:v2.132.3
+          ports:
+            - containerPort: 9999
+          env:
+            - name: GOTRUE_DB_DRIVER
+              value: postgres
+            - name: GOTRUE_DB_DATABASE_URL
+              value: postgres://postgres:postgres@postgres.default.svc.cluster.local:5432/test?sslmode=disable&search_path=auth
+            - name: GOTRUE_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gotrue-test
+                  key: jwt_secret
+            - name: GOTRUE_SITE_URL
+              value: "http://localhost:3000"
+            - name: GOTRUE_JWT_EXP
+              value: "3600"
+            - name: GOTRUE_JWT_ALGORITHM
+              value: "HS256"
+            - name: GOTRUE_JWT_AUD
+              value: "apidepot-test"
+            - name: GOTRUE_JWT_ADMIN_ROLES
+              value: "postgres,service_role"
+            - name: GOTRUE_API_HOST
+              value: "0.0.0.0"
+            - name: GOTRUE_API_PORT
+              value: "9999"
+            - name: DB_NAMESPACE
+              value: "auth"
+            - name: API_ENDPOINT
+              value: "http://apidepot-test.local.shaple.io/auth/v1"
+            - name: API_EXTERNAL_URL
+              value: "http://apidepot-test.local.shaple.io/auth/v1"
+            - name: GOTRUE_URI_ALLOW_LIST
+              value: "*"
+            - name: GOTRUE_MAILER_AUTOCONFIRM
+              value: "true"
+            - name: GOTRUE_MAILER_URLPATHS_CONFIRMATION
+              value: "http://apidepot-test.local.shaple.io/auth/v1/verify"
+            - name: GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE
+              value: "http://apidepot-test.local.shaple.io/auth/v1/verify"
+            - name: GOTRUE_MAILER_URLPATHS_INVITE
+              value: "http://apidepot-test.local.shaple.io/auth/v1/verify"
+            - name: GOTRUE_MAILER_URLPATHS_RECOVERY
+              value: "http://apidepot-test.local.shaple.io/auth/v1/verify"
+            - name: GOTRUE_EXTERNAL_OAUTH_REDIRECT_URI
+              value: "http://apidepot-test.local.shaple.io/auth/v1/callback"
+            - name: GOTRUE_RATE_LIMIT_VERIFY
+              value: "100"
+            - name: GOTRUE_RATE_LIMIT_TOKEN_REFRESH
+              value: "100"
+            - name: GOTRUE_EXTERNAL_GITHUB_ENABLED
+              value: "true"
+            - name: GOTRUE_EXTERNAL_GITHUB_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: apidepot-secret
+                  key: test_github_client_id
+            - name: GOTRUE_EXTERNAL_GITHUB_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: apidepot-secret
+                  key: test_github_secret
+            - name: GOTRUE_EXTERNAL_GITHUB_REDIRECT_URL
+              value: "http://apidepot-test.local.shaple.io/auth/v1/callback"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 9999
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9999
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3

@@ -1,0 +1,5 @@
+/apidepot
+/protoc*
+/golangci-lint
+/apidepotctl-*
+/apidepotctl

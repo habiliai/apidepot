@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: database
+  namespace: "{{ .Stack.Namespace }}"
+  labels:
+    shaple.io/project.name: "{{ .Project.Name | toLabel }}"
+    shaple.io/stack.name: "{{ .Stack.Name | toLabel }}"
+    shaple.io/component: database
+    shaple.io/project.id: "{{ .Project.ID }}"
+    shaple.io/stack.id: "{{ .Stack.ID }}"
+data:
+  db_host: "postgres.default.svc.cluster.local"
+  db_port: "5432"
+  db_ssl: "disable"

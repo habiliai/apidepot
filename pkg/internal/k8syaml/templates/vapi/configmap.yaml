@@ -1,0 +1,20 @@
+{{- range $index, $vapi := .Vapis }}
+{{- if ne $index 0}}
+---
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vapi-{{ $vapi.PackageID }}-{{ $vapi.MajorVersion }}
+  namespace: "{{ $.Stack.Namespace }}"
+  labels:
+    shaple.io/project.name: "{{ $.Project.Name | toLabel }}"
+    shaple.io/project.id: "{{ $.Project.ID }}"
+    shaple.io/stack.name: "{{ $.Stack.Name | toLabel }}"
+    shaple.io/stack.id: "{{ $.Stack.ID }}"
+    shaple.io/component: vapi
+    shaple.io/vapi.id: "{{ $vapi.ID }}"
+data:
+  SHAPLE_URL: "{{ $.Stack.Endpoint }}"
+  TAR_FILE_URL: "{{ $vapi.TarFileUrl }}"
+{{- end }}

@@ -1,0 +1,4 @@
+.git
+testdata
+node_modules
+bin/*

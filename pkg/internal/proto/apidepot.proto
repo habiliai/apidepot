@@ -1,0 +1,795 @@
+syntax = "proto3";
+
+package apidepot.v1;
+
+option go_package = "github.com/habiliai/apidepot/pkg/internal/proto";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+service ApiDepot {
+  // about instances
+  rpc CreateInstance (CreateInstanceRequest) returns (Instance);
+  rpc GetInstanceById (InstanceId) returns (Instance);
+  rpc EditInstance (EditInstanceRequest) returns (google.protobuf.Empty);
+  rpc DeleteInstance (InstanceId) returns (google.protobuf.Empty);
+  rpc DeployStack (DeployStackRequest) returns (google.protobuf.Empty);
+  rpc LaunchInstance (InstanceId) returns (google.protobuf.Empty);
+  rpc StopInstance (InstanceId) returns (google.protobuf.Empty);
+
+  // about vapis
+  rpc DeleteVapiPackage (VapiPackageId) returns (google.protobuf.Empty);
+  rpc DeleteAllVapiReleases (google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc DeleteAllVapiReleasesInPackage (VapiPackageId) returns (google.protobuf.Empty);
+  rpc GetVapiReleaseById (VapiReleaseId) returns (VapiRelease);
+  rpc DeleteVapiRelease (VapiReleaseId) returns (google.protobuf.Empty);
+  rpc DeleteVapiPackages (google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc RegisterVapi (RegisterVapiRequest) returns (VapiReleaseId);
+  rpc UpdateVapiVersion (UpdateVapiVersionRequest) returns (VapiReleaseId);
+  rpc SearchVapis (SearchVapisRequest) returns (SearchVapisResponse);
+  rpc GetVapiReleasesInPackage (VapiPackageId) returns (GetVapiReleasesResponse);
+  rpc GetVapiReleaseByVersionInPackage (GetVapiReleaseByVersionInPackageRequest) returns (VapiRelease);
+  rpc GetVapiPackages (GetVapiPackagesRequest) returns (GetVapiPackagesResponse);
+  rpc GetVapiPackageById(VapiPackageId) returns (VapiPackage);
+  rpc GetVapiPackagesByOwnerId(UserId) returns (GetVapiPackagesResponse);
+  rpc GetVapiDocsUrl (GetVapiDocsUrlRequest) returns (GetVapiDocsUrlResponse);
+
+  // for debugging
+  rpc ResetSchema (google.protobuf.Empty) returns (google.protobuf.Empty);
+
+  // about users
+  rpc GetUser(google.protobuf.Empty) returns (User);
+  rpc UpdateUserProfile(UpdateUserProfileRequest) returns (google.protobuf.Empty);
+  rpc UpdateGithubInstallationInfo(UpdateUserGithubInstallationInfoRequest) returns (google.protobuf.Empty);
+  rpc SyncExistingInstallation(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc GetUserStorageUsages(google.protobuf.Empty) returns (GetUserStorageUsagesResponse);
+
+  // etc...
+  rpc GenerateInstallationAccessToken(google.protobuf.Empty) returns (GenerateInstallationAccessTokenResponse);
+
+  // about stacks
+  rpc GetStacks (GetStacksRequest) returns (GetStacksResponse);
+  rpc CreateStack (CreateStackRequest) returns (Stack);
+  rpc GetStackById (StackId) returns (Stack);
+  rpc DeleteStack (StackId) returns (google.protobuf.Empty);
+  rpc InstallAuth (InstallAuthRequest) returns (google.protobuf.Empty);
+  rpc UninstallAuth (StackId) returns (google.protobuf.Empty);
+  rpc InstallPostgrest (InstallPostgrestRequest) returns (google.protobuf.Empty);
+  rpc UninstallPostgrest (StackId) returns (google.protobuf.Empty);
+  rpc InstallStorage (InstallStorageRequest) returns (google.protobuf.Empty);
+  rpc UninstallStorage (StackId) returns (google.protobuf.Empty);
+  rpc InstallVapi (InstallVapiRequest) returns (StackVapi);
+  rpc UninstallVapi (UninstallVapiRequest) returns (google.protobuf.Empty);
+  rpc UpdateVapi (UpdateVapiRequest) returns (StackVapi);
+  rpc MigrateDatabase (MigrateDatabaseRequest) returns (google.protobuf.Empty);
+  rpc GetStackInstances (StackId) returns (GetStackInstancesResponse);
+  rpc UpdateStack(UpdateStackRequest) returns (google.protobuf.Empty);
+  rpc GetMyStorageUsage(google.protobuf.Empty) returns (GetMyStorageUsageResponse);
+  rpc SetStackEnv(SetStackEnvRequest) returns (google.protobuf.Empty);
+  rpc UnsetStackEnv(UnsetStackEnvRequest) returns (google.protobuf.Empty);
+  rpc InstallCustomVapi(InstallCustomVapiRequest) returns (google.protobuf.Empty);
+  rpc UninstallCustomVapi(UninstallCustomVapiRequest) returns (google.protobuf.Empty);
+  rpc GetCustomVapiByNameOnStack(GetCustomVapiByNameOnStackRequest) returns (CustomVapi);
+  rpc UpdateCustomVapi(UpdateCustomVapiRequest) returns (google.protobuf.Empty);
+  rpc GetCustomVapisOnStack(StackId) returns (GetCustomVapisOnStackResponse);
+  rpc UpdateTelegramMiniappPromotion(UpdateTelegramMiniappPromotionRequest) returns (google.protobuf.Empty);
+  rpc GetPublicTelegramMiniappPromotion(GetPublicTelegramMiniappPromotionRequest) returns (TelegramMiniappPromotion);
+  rpc GetAllPublicTelegramMiniappPromotions(GetAllPublicTelegramMiniappPromotionsRequest) returns (GetAllPublicTelegramMiniappPromotionsResponse);
+
+  // about projects
+  rpc GetProjects (GetProjectsRequest) returns (GetProjectsResponse);
+  rpc CreateProject (CreateProjectRequest) returns (Project);
+  rpc GetProjectById (ProjectId) returns (Project);
+  rpc DeleteProject (ProjectId) returns (google.protobuf.Empty);
+
+  // about CLI app management
+  rpc RegisterCliApp (RegisterCliAppRequest) returns (RegisterCliAppResponse);
+  rpc DeleteCliApp (DeleteCliAppRequest) returns (google.protobuf.Empty);
+  rpc VerifyCliApp (VerifyCliAppRequest) returns (VerifyCliAppResponse);
+
+  // about service template
+  rpc CreateStackFromServiceTemplate(CreateStackFromServiceTemplateRequest) returns (Stack);
+  rpc SearchServiceTemplates(SearchServiceTemplatesRequest) returns (SearchServiceTemplatesResponse);
+  rpc GetServiceTemplateById(ServiceTemplateId) returns (ServiceTemplate);
+
+  rpc HardForkGitRepo(HardForkGitRepoRequest) returns (google.protobuf.Empty);
+  rpc CreateImageUploadUrl(CreateImageUploadUrlRequest) returns (CreateImageUploadUrlResponse);
+}
+
+message GetAllPublicTelegramMiniappPromotionsRequest {
+  enum OrderBy {
+    ORDER_BY_NUM_VIEWS = 0;
+    ORDER_BY_CREATED_AT = 1;
+  }
+
+  optional OrderBy order_by = 1;
+  optional int32 limit = 2;
+  optional string cursor = 3;
+}
+
+message GetAllPublicTelegramMiniappPromotionsResponse {
+  repeated TelegramMiniappPromotion records = 1;
+  string next_cursor = 2;
+  int32 num_total = 3;
+}
+
+message UpdateTelegramMiniappPromotionRequest {
+  int32 stack_id = 1;
+  string link_url = 2;
+  string app_banner_image_url = 3;
+  repeated string app_screenshot_image_urls = 4;
+  bool public = 5;
+  string app_title = 6;
+  string app_description = 7;
+  string app_icon_image_url = 8;
+}
+
+message TelegramMiniappPromotion {
+  string link_url = 2;
+  string app_banner_image_url = 3;
+  repeated string app_screenshot_image_urls = 4;
+  string app_title = 5;
+  string app_description = 6;
+  string app_icon_image_url = 7;
+  int32 num_unique_views = 8;
+  bool public = 9;
+  optional Stack stack = 10;
+}
+
+message GetPublicTelegramMiniappPromotionRequest {
+  int32 stack_id = 1;
+}
+
+message UnsetStackEnvRequest {
+  int32 stack_id = 1;
+  repeated string env_var_names = 2;
+}
+
+message SetStackEnvRequest {
+  message EnvVar {
+    string name = 1;
+    string value = 2;
+  }
+  int32 stack_id = 1;
+  repeated EnvVar env_vars = 2;
+}
+
+message HardForkGitRepoRequest {
+  enum GitProvider {
+    GitProviderGithub = 0;
+  }
+
+  string src_git_repo = 1; // e.g. "habiliai/service-temlate-example"
+  string dst_git_repo = 2; // e.g. "jcooky/service-template-example"
+  optional GitProvider git_provider = 3;
+}
+
+message GetMyStorageUsageResponse {
+  int64 num_used = 1;
+}
+
+message CreateImageUploadUrlRequest {
+  enum ImageCategory {
+    STACK_LOGO = 0;
+    TAPP_BANNER_IMAGE = 1;
+    TAPP_SCREENSHOT_IMAGE = 2;
+    USER_PROFILE_IMAGE = 3;
+  }
+  string image_type = 1;
+  ImageCategory category = 2;
+}
+
+message CreateImageUploadUrlResponse {
+  string signed_url = 1;
+  string path = 2;
+  string token = 3;
+  string bucket = 4;
+}
+
+message ServiceTemplateId {
+  int32 id = 1;
+}
+
+message ServiceTemplate {
+  int32 id = 1;
+  string name = 2;
+  string concent_image_url = 3;
+  string detail = 4;
+  string git_repo = 5;
+  repeated VapiRelease vapi_releases = 6;
+  string git_hash = 7;
+  string description = 8;
+  string primary_image_url = 9;
+}
+
+message SearchServiceTemplatesResponse {
+  repeated ServiceTemplate service_templates = 1;
+  int32 next_cursor = 2;
+  int64 num_total = 3;
+}
+
+message SearchServiceTemplatesRequest {
+  optional int32 cursor = 1;
+  optional int32 limit = 2;
+  optional string search_query = 3;
+}
+
+message CreateStackFromServiceTemplateRequest {
+  int32 service_template_id = 1;
+  string git_repo = 2; // e.g. "habiliai/apidepot"
+  CreateStackRequest create_stack_request = 3;
+}
+
+message VerifyCliAppRequest {
+  string app_id = 1;
+  string app_secret = 2;
+}
+
+message VerifyCliAppResponse {
+  string access_token = 1;
+}
+
+message DeleteCliAppRequest {
+  string app_id = 1;
+}
+
+message RegisterCliAppRequest {
+  string host = 1;
+  string refresh_token = 2;
+}
+
+message RegisterCliAppResponse {
+  string app_id = 1;
+  string app_secret = 2;
+}
+
+message CreateInstanceRequest {
+  string name = 1;
+  int32 stack_id = 2;
+  Instance.InstanceZone zone = 3;
+}
+
+message EditInstanceRequest {
+  int32 id = 1;
+  optional string name = 2;
+}
+
+message DeployStackRequest {
+  int32 id = 1;
+  optional string timeout = 2;
+}
+
+message ProjectId {
+  int32 id = 1;
+}
+
+message InstanceId {
+  int32 id = 1;
+}
+
+message CreateProjectRequest {
+  string name = 1;
+  string description = 2;
+}
+
+message Project {
+  int32 id = 1;
+  string name = 2;
+  string description = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+  repeated Stack stacks = 6;
+}
+
+message GetProjectsRequest {
+  optional string name = 1;
+  int32 page = 2;
+  int32 per_page = 3;
+}
+
+message GetProjectsResponse {
+  repeated Project projects = 1;
+}
+
+message UpdateProjectByIdRequest {
+  int32 id = 1;
+  string name = 2;
+  string description = 3;
+}
+
+message UpdateStackRequest {
+  int32 stack_id = 1;
+  optional string site_url = 2;
+  optional string name = 3;
+  optional string description = 4;
+  optional string logo_image_url = 5;
+}
+
+message Instance {
+  enum InstanceState {
+    InstanceStateNone = 0;
+    InstanceStateRunning = 1;
+    InstanceStateInitialize = 2;
+    InstanceStateReady = 3;
+  }
+
+  enum InstanceZone {
+    InstanceZoneMulti = 0;
+    InstanceZoneOciApSeoul = 1;
+    InstanceZoneOciSingapore = 2;
+    InstanceZoneDefault = 99;
+    InstanceZoneNone = 100;
+  }
+
+  int32 id = 1;
+  string name = 2;
+  int32 stack_id = 3;
+  int32 num_replicas = 4;
+  int32 max_replicas = 5;
+  InstanceState state = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  InstanceZone zone = 9;
+}
+
+message GetStackInstancesResponse {
+  repeated Instance instances = 1;
+}
+
+message InstallPostgrestRequest {
+  int32 id = 1;
+  repeated string schemas = 2;
+  bool is_update = 3;
+}
+
+message InstallStorageRequest {
+  int32 id = 1;
+  optional string tenant_id = 2;
+  bool is_update = 3;
+}
+
+message InstallVapiRequest {
+  int32 stack_id = 1;
+  int32 vapi_id = 2;
+}
+
+message UninstallVapiRequest {
+  int32 stack_id = 1;
+  int32 vapi_id = 2;
+}
+
+message UpdateVapiRequest {
+  int32 stack_id = 1;
+  int32 vapi_id = 2;
+  string version = 3;
+}
+
+message MigrateDatabaseRequest {
+  int32 stack_id = 1;
+  repeated Migration migrations = 2;
+}
+
+message Migration {
+  string query = 1;
+  google.protobuf.Timestamp version = 2;
+}
+
+message StackId {
+  int32 id = 1;
+}
+
+message StackDB {
+  string name = 1;
+  string username = 2;
+  string password = 3;
+}
+
+message StackStorage {
+  string s3_bucket = 1;
+  string tenant_id = 2;
+}
+
+message StackPostgrest {
+  repeated string schemas = 1;
+}
+
+message Stack {
+  int32 id = 1;
+  string name = 2;
+  string description = 3;
+  string site_url = 4;
+  string scheme = 5;
+  string domain = 6;
+  string git_repo = 7;
+  string git_branch = 8;
+  bool auth_enabled = 9;
+  bool postgrest_enabled = 10;
+  bool storage_enabled = 11;
+  string admin_api_key = 12;
+  string anon_api_key = 13;
+  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp updated_at = 15;
+  int32 project_id = 17;
+  StackAuth auth = 18;
+  StackPostgrest postgrest = 19;
+  StackStorage storage = 20;
+  repeated StackVapi vapis = 21;
+  StackDB db = 22;
+  string logo_image_url = 23;
+  Instance.InstanceZone default_region = 24;
+  repeated CustomVapi custom_vapis = 25;
+  TelegramMiniappPromotion telegram_miniapp_promotion = 26;
+  optional int32 service_template_id = 27;
+}
+
+
+message StackAuth {
+  string jwt_secret = 1;
+  int64 jwt_exp = 2;
+  string smtp_sender_name = 3;
+  bool mailer_auto_confirm = 4;
+  string mailer_confirmation_subject = 5;
+  string mailer_recovery_subject = 6;
+  string mailer_invite_subject = 7;
+  string mailer_email_change_subject = 8;
+  string mailer_magic_link_subject = 9;
+  string mailer_recovery_template = 10;
+  string mailer_confirmation_template = 11;
+  string mailer_invite_template = 12;
+  string mailer_email_change_template = 13;
+  string mailer_magic_link_template = 14;
+  bool sms_auto_confirm = 15;
+  int64 sms_otp_exp = 16;
+  int32 sms_otp_length = 17;
+  string sms_provider = 18;
+  string sms_twilio_account_sid = 19;
+  string sms_twilio_auth_token = 20;
+  string sms_twilio_message_service_sid = 21;
+  string sms_twilio_content_sid = 22;
+  string sms_twilio_verify_account_sid = 23;
+  string sms_twilio_verify_auth_token = 24;
+  string sms_twilio_verify_message_service_sid = 25;
+  string sms_messagebird_access_key = 26;
+  string sms_messagebird_originator = 27;
+  string sms_vonage_api_key = 28;
+  string sms_vonage_api_secret = 29;
+  string sms_vonage_from = 30;
+  string sms_test_otp = 31;
+  string sms_test_otp_valid_until = 32;
+  bool external_email_enabled = 33;
+  bool external_phone_enabled = 34;
+  string external_ios_bundle_id = 35;
+  repeated StackAuthExternalOAuthProvider external_oauth_providers = 36;
+  bool mfa_enabled = 37;
+  int64 mfa_challenge_expiry_duration = 38;
+  float mfa_rate_limit_challenge_and_verify = 39;
+  float mfa_max_enrolled_factors = 40;
+  int32 mfa_max_verified_factors = 41;
+  bool security_captcha_enabled = 42;
+  string security_captcha_secret = 43;
+  string security_captcha_provider = 44;
+  string external_redirect_url = 45;
+  float rate_limit_email_sent = 46;
+  float rate_limit_sms_sent = 47;
+  float rate_limit_verify = 48;
+  float rate_limit_token_refresh = 49;
+  float rate_limit_sso = 50;
+  double sms_max_frequency = 51;
+}
+
+message StackAuthExternalOAuthProvider {
+  bool enabled = 1;
+  string name = 2;
+  string secret = 3;
+  string client_id = 4;
+  bool skip_nonce_check = 5;
+}
+
+message CreateStackRequest {
+  string name = 1;
+  string description = 2;
+  int32 project_id = 3;
+  string site_url = 4;
+  string logo_image_url = 5;
+  Instance.InstanceZone default_region = 6;
+}
+
+message InstallAuthRequest {
+  int32 id = 1;
+  optional bool captcha_enabled = 2;
+  optional string captcha_provider = 3;
+  optional string captcha_secret = 4;
+  optional bool external_email_enabled = 5;
+  optional string external_ios_bundle_id = 6;
+  repeated AuthExternalOAuthProvider external_oauth_providers = 7;
+  optional bool external_phone_enabled = 8;
+  optional string external_redirect_url = 9;
+  optional string jwt_exp = 10;
+  optional bool mailer_auto_confirm = 11;
+  optional string mailer_confirmation_subject = 12;
+  optional string mailer_confirmation_template = 13;
+  optional string mailer_email_change_subject = 14;
+  optional string mailer_email_change_template = 15;
+  optional string mailer_invite_subject = 16;
+  optional string mailer_invite_template = 17;
+  optional string mailer_magic_link_subject = 18;
+  optional string mailer_magic_link_template = 19;
+  optional string mailer_recovery_subject = 20;
+  optional string mailer_recovery_template = 21;
+  optional string mfa_challenge_expiry_duration = 22;
+  optional bool mfa_enabled = 23;
+  optional double mfa_max_enrolled_factors = 24;
+  optional int32 mfa_max_verified_factors = 25;
+  optional double mfa_rate_limit_challenge_and_verify = 26;
+  optional double rate_limit_email_sent = 27;
+  optional double rate_limit_sms_sent = 28;
+  optional double rate_limit_sso = 29;
+  optional double rate_limit_token_refresh = 30;
+  optional double rate_limit_verify = 31;
+  optional bool sms_auto_confirm = 32;
+  optional string sms_messagebird_access_key = 33;
+  optional string sms_messagebird_orginator = 34;
+  optional string sms_otp_exp = 35;
+  optional int32 sms_otp_length = 36;
+  optional string sms_provider = 37;
+  optional string sms_test_otp = 38;
+  optional string sms_test_otp_valid_until = 39;
+  optional string sms_twilio_account_sid = 40;
+  optional string sms_twilio_auth_token = 41;
+  optional string sms_twilio_content_sid = 42;
+  optional string sms_twilio_message_service_sid = 43;
+  optional string sms_twilio_verify_account_sid = 44;
+  optional string sms_twilio_verify_auth_token = 45;
+  optional string sms_twilio_verify_message_service_sid = 46;
+  optional string sms_vonage_api_key = 47;
+  optional string sms_vonage_api_secret = 48;
+  optional string sms_vonage_from = 49;
+  optional string smtp_admin_email = 50;
+  optional string smtp_sender_name = 51;
+  bool is_update = 52;
+  optional string sms_max_frequency = 53;
+  optional bool security_manual_linking_enabled = 54;
+}
+
+message AuthExternalOAuthProvider {
+  optional string client_id = 1;
+  optional bool enabled = 2;
+  optional string name = 3;
+  optional string secret = 4;
+  optional bool skip_nonce_check = 5;
+}
+
+message GetStacksRequest {
+  optional string name = 1;
+  int32 project_id = 2;
+  int32 cursor = 3;
+  int32 limit = 4;
+}
+
+message GetStacksResponse {
+  repeated Stack stacks = 1;
+  int32 next_cursor = 2;
+}
+
+message StackVapi {
+  int32 stack_id = 1;
+  VapiRelease vapi = 2;
+  int32 vapi_id = 3;
+}
+
+message UpdateVapiVersionRequest {
+  int32 package_id = 1;
+  string homepage = 2;
+  repeated string domains = 3;
+  string description = 4;
+}
+
+message UserProfile {
+  string name = 1;
+  string description = 2;
+  string github_email = 3;
+  string github_username = 4;
+  string medium_link = 5;
+  string avatar_url = 6;
+}
+
+message UpdateUserProfileRequest {
+  string authId = 1;
+  UserProfile profile = 2;
+}
+
+message UpdateUserGithubInstallationInfoRequest {
+  string authId = 1;
+  int64 installationId = 2;
+  string authCode = 3;
+}
+
+message UserId {
+  int32 id = 1;
+}
+
+message UserAuthId {
+  string id = 1;
+}
+
+message User {
+  int32 id = 1;
+  string authId = 2;
+  UserProfile profile = 3;
+  int64 githubInstallationId = 4;
+  string githubAccessToken = 5;
+}
+
+message GetAllOrganizationsRequest {
+  optional string memberId = 1;
+}
+
+message GetAllOrganizationsResponse {
+  repeated Organization organizations = 1;
+}
+
+message UpsertOrganizationRequest {
+  bool noCreate = 1;
+  optional int32 id = 2;
+  optional string name = 3;
+}
+
+message OrganizationId {
+  int32 id = 1;
+}
+
+message Organization {
+  int32 id = 1;
+  string name = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+message GetVapiReleasesInPackageRequest {
+  int32 package_id = 1;
+}
+
+message GetVapiPackagesRequest {
+  optional string name = 1;
+}
+
+message GetVapiReleaseByVersionInPackageRequest {
+  int32 package_id = 1;
+  string version = 2;
+}
+
+message GetVapiDocsUrlRequest {
+  int32 release_id = 1;
+}
+
+message GetVapiDocsUrlResponse {
+  optional string url = 1;
+}
+
+message VapiPackageId {
+  int32 id = 1;
+}
+
+message VapiReleaseId {
+  int32 id = 1;
+}
+
+message VapiPackage {
+  int32 id = 1;
+  string name = 2;
+  string git_repo = 3;
+  string git_branch = 4;
+  int32 owner_id = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+  repeated VapiRelease releases = 8;
+  double overall_rank = 9;
+  string description = 10;
+  repeated string domains = 11;
+}
+
+enum VapiPackageAccess {
+  VapiPackageAccessPublic = 0;
+  VapiPackageAccessPrivate = 1;
+}
+
+message VapiRelease {
+  int32 id = 1;
+  string version = 2;
+  string git_hash = 3;
+  string location = 4;
+  string short_description = 5;
+  string long_description = 6;
+  string tar_file_path = 7;
+  bool deprecated = 8;
+  bool published = 9;
+  bool suspended = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  VapiPackageAccess access = 13;
+  int32 package_id = 14;
+  DocsType docs_type = 15;
+}
+
+enum DocsType {
+  None = 0;
+  Swagger = 1;
+}
+
+message GetVapiReleasesResponse {
+  repeated VapiRelease releases = 1;
+}
+
+message GetVapiPackagesResponse {
+  repeated VapiPackage packages = 1;
+}
+
+message RegisterVapiRequest {
+  string name = 1;
+  string git_repo = 2;
+  string git_branch = 3;
+  string description = 5;
+  repeated string domains = 6;
+  string vapi_pool_id = 7;
+  string homepage = 8;
+}
+
+message SearchVapisRequest {
+  optional string name = 1;
+  optional string version = 2;
+  int64 page_num = 4;
+  int64 page_size = 5;
+}
+
+message SearchVapisResponse {
+  optional int32 next_page = 1;
+  int32 num_total = 2;
+  repeated VapiRelease releases = 3;
+}
+
+message GenerateInstallationAccessTokenResponse {
+  string token = 1;
+}
+
+// All fields unit is GB
+message GetUserStorageUsagesResponse {
+  double average = 1;
+  double overage = 2;
+  message DailyAverage {
+    google.protobuf.Timestamp date = 1;
+    double average = 2;
+  }
+  repeated DailyAverage averages_in_period = 3;
+}
+
+message InstallCustomVapiRequest {
+  int32 stack_id = 1;
+  string name = 2;
+}
+
+message UninstallCustomVapiRequest {
+  int32 stack_id = 1;
+  string name = 2;
+}
+
+message GetCustomVapiByNameOnStackRequest {
+  int32 stack_id = 1;
+  string name = 2;
+}
+
+message CustomVapi {
+  int32 stack_id = 1;
+  string name = 2;
+  string tar_file_path = 3;
+}
+
+message UpdateCustomVapiRequest {
+  int32 stack_id = 1;
+  string name = 2;
+  optional string new_name = 3;
+  optional bool update_tar_file = 4;
+}
+
+message GetCustomVapisOnStackResponse {
+  repeated CustomVapi custom_vapis = 1;
+}

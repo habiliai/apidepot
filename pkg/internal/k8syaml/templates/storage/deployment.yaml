@@ -1,0 +1,203 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storage
+  namespace: "{{ .Stack.Namespace }}"
+  labels:
+    shaple.io/project.name: "{{ .Project.Name | toLabel }}"
+    shaple.io/stack.name: "{{ .Stack.Name | toLabel }}"
+    shaple.io/component: storage
+    shaple.io/project.id: "{{ .Project.ID }}"
+    shaple.io/stack.id: "{{ .Stack.ID }}"
+spec:
+  selector:
+    matchLabels:
+      shaple.io/project.id: "{{ .Project.ID }}"
+      shaple.io/stack.id: "{{ .Stack.ID }}"
+      shaple.io/component: storage
+  template:
+    metadata:
+      labels:
+        shaple.io/project.id: "{{ .Project.ID }}"
+        shaple.io/stack.id: "{{ .Stack.ID }}"
+        shaple.io/component: storage
+        shaple.io/pod: "storage-{{ .Stack.Hash }}"
+        shaple.io/updated-at: "{{ now.Format "2006-01-02T15.04.05Z" }}"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: "shaple.io/pod"
+                      operator: In
+                      values:
+                        - "storage-{{ .Stack.Hash }}"
+                topologyKey: "kubernetes.io/hostname"
+              weight: 90
+      nodeSelector:
+        stacks: "true"
+      initContainers:
+        - name: init-db
+          image: postgres:14-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: database
+                  key: db_host
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: database
+                  key: db_port
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: db_username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: db_password
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: db_name
+            - name: DB_URL
+              value: postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable
+          command: [ "/bin/sh", "-c" ]
+          args:
+            - |
+              until pg_isready -h $(DB_HOST) -p $(DB_PORT) -U $(DB_USER); do
+                echo "Waiting for database to start..."
+                sleep 1
+              done
+              echo "Database is ready"
+      containers:
+        - name: main
+          image: "supabase/storage-api:v1.0.10"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DB_DRIVER
+              value: "postgres"
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: database
+                  key: db_host
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: db_name
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: database
+                  key: db_port
+            - name: DB_SSL
+              valueFrom:
+                configMapKeyRef:
+                  name: database
+                  key: db_ssl
+            - name: FILE_SIZE_LIMIT
+              valueFrom:
+                configMapKeyRef:
+                  name: storage
+                  key: FILE_SIZE_LIMIT
+            - name: STORAGE_BACKEND
+              valueFrom:
+                configMapKeyRef:
+                  name: storage
+                  key: STORAGE_BACKEND
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: db_username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: db_password
+            - name: DATABASE_URL
+              value: $(DB_DRIVER)://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?search_path=storage&sslmode=$(DB_SSL)
+            - name: AUTH_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth
+                  key: jwt_secret
+            - name: DB_SUPER_USER
+              valueFrom:
+                  secretKeyRef:
+                    name: database
+                    key: db_username
+            - name: DB_INSTALL_ROLES
+              value: "false"
+            - name: STORAGE_S3_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: storage
+                  key: STORAGE_S3_BUCKET
+            - name: STORAGE_S3_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: storage
+                  key: STORAGE_S3_ENDPOINT
+            - name: STORAGE_S3_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: storage
+                  key: STORAGE_S3_REGION
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: storage
+                  key: aws_access_key
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: storage
+                  key: aws_secret_key
+            - name: IMAGE_TRANSFORMATION_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: storage
+                  key: IMAGE_TRANSFORMATION_ENABLED
+            - name: IMGPROXY_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: storage
+                  key: IMGPROXY_URL
+            - name: ANON_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: storage
+                  key: anon_key
+            - name: SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: storage
+                  key: service_key
+            - name: TENANT_ID
+              valueFrom:
+                  configMapKeyRef:
+                    name: storage
+                    key: TENANT_ID
+            - name: DATABASE_SEARCH_PATH
+              valueFrom:
+                configMapKeyRef:
+                  key: DATABASE_SEARCH_PATH
+                  name: storage
+          ports:
+            - name: http
+              containerPort: 5000
+              protocol: TCP
+          resources:
+            limits:
+              memory: 256Mi

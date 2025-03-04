@@ -1,0 +1,107 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth
+  namespace: "{{ .Stack.Namespace }}"
+  labels:
+    shaple.io/project.name: "{{ .Project.Name | toLabel }}"
+    shaple.io/project.id: "{{ .Project.ID }}"
+    shaple.io/stack.name: "{{ .Stack.Name | toLabel }}"
+    shaple.io/stack.id: "{{ .Stack.ID }}"
+    shaple.io/component: auth
+data:
+  DB_NAMESPACE: "auth"
+  API_ENDPOINT: "{{ .Stack.Endpoint }}/auth/v1"
+  GOTRUE_API_HOST: "0.0.0.0"
+  GOTRUE_API_PORT: "9999"
+  API_EXTERNAL_URL: "{{ .Stack.Endpoint }}/auth/v1"
+  GOTRUE_URI_ALLOW_LIST: '*'
+  # signup
+  GOTRUE_SITE_URL: "{{ .Stack.SiteURL }}"
+  GOTRUE_DISABLE_SIGNUP: "false"
+  GOTRUE_EXTERNAL_EMAIL_ENABLED: "{{ .Auth.External.EmailEnabled }}"
+  GOTRUE_EXTERNAL_PHONE_ENABLED: "{{ .Auth.External.PhoneEnabled }}"
+  GOTRUE_EXTERNAL_IOS_BUNDLE_ID: "{{ .Auth.External.IOSBundleID }}"
+  # JWT
+  GOTRUE_JWT_ADMIN_ROLES: "shaple_admin,service_role"
+  GOTRUE_JWT_AUD: "authenticated"
+  GOTRUE_JWT_DEFAULT_GROUP_NAME: "authenticated"
+  GOTRUE_JWT_EXP: "{{ .Auth.JWT.Exp.Seconds | int }}"
+  # Mailer
+  GOTRUE_MAILER_AUTOCONFIRM: "{{ .Auth.Mailer.AutoConfirm }}"
+  GOTRUE_MAILER_URLPATHS_CONFIRMATION: "{{ .Stack.Endpoint }}/auth/v1/verify"
+  GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: "{{ .Stack.Endpoint }}/auth/v1/verify"
+  GOTRUE_MAILER_URLPATHS_INVITE: "{{ .Stack.Endpoint }}/auth/v1/verify"
+  GOTRUE_MAILER_URLPATHS_RECOVERY: "{{ .Stack.Endpoint }}/auth/v1/verify"
+  GOTRUE_MAILER_SUBJECTS_CONFIRMATION: "{{ .Auth.Mailer.Subjects.Confirmation }}"
+  GOTRUE_MAILER_SUBJECTS_RECOVERY: "{{ .Auth.Mailer.Subjects.Recovery }}"
+  GOTRUE_MAILER_SUBJECTS_INVITE: "{{ .Auth.Mailer.Subjects.Invite }}"
+  GOTRUE_MAILER_SUBJECTS_EMAIL_CHANGE: "{{ .Auth.Mailer.Subjects.EmailChange }}"
+  GOTRUE_MAILER_SUBJECTS_MAGIC_LINK: "{{ .Auth.Mailer.Subjects.MagicLink }}"
+
+  # Custom mailer templates
+  GOTRUE_MAILER_TEMPLATES_RECOVERY: "{{ .Auth.Mailer.Templates.Recovery }}"
+  GOTRUE_MAILER_TEMPLATES_INVITE: "{{ .Auth.Mailer.Templates.Invite }}"
+  GOTRUE_MAILER_TEMPLATES_EMAIL_CHANGE: "{{ .Auth.Mailer.Templates.EmailChange }}"
+  GOTRUE_MAILER_TEMPLATES_CONFIRMATION: "{{ .Auth.Mailer.Templates.Confirmation }}"
+  GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: "{{ .Auth.Mailer.Templates.MagicLink }}"
+
+  # SMTP
+  GOTRUE_SMTP_ADMIN_EMAIL: "{{ .Auth.SMTP.AdminEmail }}"
+  GOTRUE_SMTP_HOST: "{{ .Auth.SMTP.Host }}"
+  GOTRUE_SMTP_PORT: "{{ .Auth.SMTP.Port }}"
+  GOTRUE_SMTP_SENDER_NAME: "{{ .Auth.SMTP.SenderName }}"
+  # SMS
+  GOTRUE_SMS_AUTOCONFIRM: "{{ .Auth.SMS.AutoConfirm }}"
+  GOTRUE_SMS_MAX_FREQUENCY: "{{ .Auth.SMS.MaxFrequency }}"
+  GOTRUE_SMS_OTP_EXP: "{{ .Auth.SMS.OTPExp.Seconds | int }}"
+  GOTRUE_SMS_OTP_LENGTH: "{{ .Auth.SMS.OTPLength }}"
+  GOTRUE_SMS_PROVIDER: "{{ .Auth.SMS.Provider | lower }}"
+  GOTRUE_SMS_TWILIO_ACCOUNT_SID: "{{ .Auth.SMS.Twilio.AccountSID }}"
+  GOTRUE_SMS_TWILIO_AUTH_TOKEN: "{{ .Auth.SMS.Twilio.AuthToken }}"
+  GOTRUE_SMS_TWILIO_MESSAGE_SERVICE_SID: "{{ .Auth.SMS.Twilio.MessageServiceSID }}"
+  GOTRUE_SMS_TWILIO_CONTENT_SID: "{{ .Auth.SMS.Twilio.ContentSID }}"
+  GOTRUE_SMS_TWILIO_VERIFY_ACCOUNT_SID: "{{ .Auth.SMS.TwilioVerify.AccountSID }}"
+  GOTRUE_SMS_TWILIO_VERIFY_AUTH_TOKEN: "{{ .Auth.SMS.TwilioVerify.AuthToken }}"
+  GOTRUE_SMS_TWILIO_VERIFY_MESSAGE_SERVICE_SID: "{{ .Auth.SMS.TwilioVerify.MessageServiceSID }}"
+  GOTRUE_SMS_MESSAGEBIRD_ACCESS_KEY: "{{ .Auth.SMS.MessageBird.AccessKey }}"
+  GOTRUE_SMS_MESSAGEBIRD_ORIGINATOR: "{{ .Auth.SMS.MessageBird.Originator }}"
+  GOTRUE_SMS_VONAGE_API_KEY: "{{ .Auth.SMS.Vonage.APIKey }}"
+  GOTRUE_SMS_VONAGE_FROM: "{{ .Auth.SMS.Vonage.From }}"
+  GOTRUE_SMS_TEST_OTP: "{{ .Auth.SMS.TestOTP }}"
+  GOTRUE_SMS_TEST_OTP_VALID_UNTIL: "{{ .Auth.SMS.TestOTPValidUntil }}"
+  # Security
+  GOTRUE_SECURITY_CAPTCHA_ENABLED: "{{ .Auth.Security.Captcha.Enabled }}"
+  GOTRUE_SECURITY_CAPTCHA_PROVIDER: "{{ .Auth.Security.Captcha.Provider | lower }}"
+  GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED: "false"
+  GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL: "0"
+  GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_REAUTHENTICATION: "false"
+  GOTRUE_SECURITY_MANUAL_LINKING_ENABLED: "{{ .Auth.Security.ManualLinkingEnabled }}"
+  # OAuth provider templates
+  GOTRUE_EXTERNAL_OAUTH_REDIRECT_URI: "{{ .Stack.Endpoint }}/auth/v1/callback"
+  {{- range .Auth.External.OAuthProviders }}
+  GOTRUE_EXTERNAL_{{ .Name | upper }}_ENABLED: "{{ .Enabled }}"
+  GOTRUE_EXTERNAL_{{ .Name | upper }}_CLIENT_ID: "{{ .ClientID }}"
+  GOTRUE_EXTERNAL_{{ .Name | upper }}_URL: ""
+  GOTRUE_EXTERNAL_{{ .Name | upper }}_SKIP_NONCE_CHECK: "{{ .SkipNonceCheck }}"
+  {{- end}}
+  GOTRUE_EXTERNAL_REDIRECT_URL: "{{ .Auth.External.RedirectURL }}"
+  # MFA
+  GOTRUE_MFA_ENABLED: "{{ .Auth.MFA.Enabled }}"
+  GOTRUE_MFA_CHALLENGE_EXPIRY_DURATION: "{{ .Auth.MFA.ChallengeExpiryDuration.Seconds }}"
+  GOTRUE_MFA_RATE_LIMIT_CHALLENGE_AND_VERIFY: "{{ .Auth.MFA.RateLimitChallengeAndVerify }}"
+  GOTRUE_MFA_MAX_ENROLLED_FACTORS: "{{ .Auth.MFA.MaxEnrolledFactors }}"
+  GOTRUE_MFA_MAX_VERIFIED_FACTORS: "{{ .Auth.MFA.MaxVerifiedFactors }}"
+  # Webhook
+  GOTRUE_WEBHOOK_URL: "{{ .Auth.Webhook.URL }}"
+  GOTRUE_WEBHOOK_RETRIES: "{{ .Auth.Webhook.Retries }}"
+  GOTRUE_WEBHOOK_TIMEOUT_SEC: "{{ .Auth.Webhook.Timeout.Seconds | int }}"
+  GOTRUE_WEBHOOK_EVENTS: "{{ .Auth.Webhook.Events | join "," }}"
+  LOG_LEVEL: "info"
+  # Rate limit
+  GOTRUE_RATE_LIMIT_HEADER: ""
+  GOTRUE_RATE_LIMIT_EMAIL_SENT: "{{ .Auth.RateLimitEmailSent }}"
+  GOTRUE_RATE_LIMIT_SMS_SENT: "{{ .Auth.RateLimitSMSSent }}"
+  GOTRUE_RATE_LIMIT_VERIFY: "{{ .Auth.RateLimitVerify }}"
+  GOTRUE_RATE_LIMIT_TOKEN_REFRESH: "{{ .Auth.RateLimitTokenRefresh }}"
+  GOTRUE_RATE_LIMIT_SSO: "{{ .Auth.RateLimitSSO }}"

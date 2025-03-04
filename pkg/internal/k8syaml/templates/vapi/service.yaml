@@ -1,0 +1,29 @@
+{{- range $index, $vapi := .Vapis }}
+{{- if ne $index 0}}
+---
+{{- end }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: vapi-{{ $vapi.PackageID }}-{{ $vapi.MajorVersion }}
+  namespace: {{ $.Stack.Namespace }}
+  labels:
+    shaple.io/project.name: "{{ $.Project.Name | toLabel }}"
+    shaple.io/project.id: "{{ $.Project.ID }}"
+    shaple.io/stack.name: "{{ $.Stack.Name | toLabel }}"
+    shaple.io/stack.id: "{{ $.Stack.ID }}"
+    shaple.io/component: vapi
+    shaple.io/vapi.id: "{{ $vapi.ID }}"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9000
+      targetPort: 9000
+      protocol: TCP
+      name: http
+  selector:
+    shaple.io/project.id: "{{ $.Project.ID }}"
+    shaple.io/stack.id: "{{ $.Stack.ID }}"
+    shaple.io/component: vapi
+    shaple.io/vapi.id: "{{ $vapi.ID }}"
+{{- end }}

@@ -1,0 +1,137 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgrest
+  labels:
+    shaple.io/project.name: "{{ .Project.Name | toLabel }}"
+    shaple.io/stack.name: "{{ .Stack.Name | toLabel }}"
+    shaple.io/component: postgrest
+    shaple.io/project.id: "{{ .Project.ID }}"
+    shaple.io/stack.id: "{{ .Stack.ID }}"
+  namespace: "{{ .Stack.Namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      shaple.io/component: postgrest
+      shaple.io/project.id: "{{ .Project.ID }}"
+      shaple.io/stack.id: "{{ .Stack.ID }}"
+  template:
+    metadata:
+      labels:
+        shaple.io/component: postgrest
+        shaple.io/pod: "postgrest-{{ .Stack.Hash }}"
+        shaple.io/updated-at: "{{ now.Format "2006-01-02T15.04.05Z" }}"
+        shaple.io/project.id: "{{ .Project.ID }}"
+        shaple.io/stack.id: "{{ .Stack.ID }}"
+    spec:
+      nodeSelector:
+        stacks: "true"
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: shaple.io/pod
+                      operator: In
+                      values:
+                        - "postgrest-{{ .Stack.Hash }}"
+                topologyKey: kubernetes.io/hostname
+              weight: 90
+      initContainers:
+        - name: init-db
+          image: postgres:14-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: database
+                  key: db_host
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: database
+                  key: db_port
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: db_username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: db_password
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: db_name
+            - name: DB_URL
+              value: postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              until pg_isready -h $(DB_HOST) -p $(DB_PORT) -U $(DB_USER); do
+                echo "Waiting for database to start..."
+                sleep 1
+              done
+              echo "Database is ready"
+      containers:
+        - name: main
+          image: postgrest/postgrest:v12.0.2
+          imagePullPolicy: IfNotPresent
+          command:
+            - "postgrest"
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: db_name
+            - name: POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: database
+                  key: db_host
+            - name: POSTGRES_PORT
+              valueFrom:
+                  configMapKeyRef:
+                    name: database
+                    key: db_port
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: db_username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                  secretKeyRef:
+                    name: database
+                    key: db_password
+            - name: PGRST_DB_URI
+              value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)?sslmode=disable"
+            - name: PGRST_DB_SCHEMAS
+              value: '{{ .Postgrest.Schemas | join "," }}'
+            - name: PGRST_DB_ANON_ROLE
+              value: anon
+            - name: PGRST_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth
+                  key: jwt_secret
+            - name: PGRST_DB_USE_LEGACY_GUCS
+              value: "false"
+            - name: PGRST_APP_SETTINGS_JWT_SECRET
+              valueFrom:
+                  secretKeyRef:
+                    name: auth
+                    key: jwt_secret
+            - name: PGRST_APP_SETTINGS_JWT_EXP
+              value: "3600"
+            - name: PGRST_ADMIN_SERVER_PORT
+              value: "3001"
+            - name: PGRST_LOG_LEVEL
+              value: "info"

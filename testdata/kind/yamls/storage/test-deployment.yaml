@@ -1,0 +1,194 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storage-test
+  labels:
+    app: storage-test
+spec:
+  selector:
+    matchLabels:
+      app: storage-test
+  template:
+    metadata:
+      labels:
+        app: storage-test
+        group: shaple-builder
+    spec:
+      initContainers:
+        - name: pg-isready
+          image: postgres:14-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DB_HOST
+              value: "postgres.default.svc.cluster.local"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: "postgres"
+            - name: DB_NAME
+              value: "test"
+            - name: DB_SSL
+              value: "disable"
+            - name: DB_URL
+              value: postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSL)
+          command: [ "/bin/sh", "-c" ]
+          args:
+            - |
+              until pg_isready -h $(DB_HOST) -p $(DB_PORT) -U $(DB_USER); do
+                echo "Waiting for database to start..."
+                sleep 2
+              done
+              echo "Database is ready"
+              
+              psql -v ON_ERROR_STOP=1 $(DB_URL) <<-EOSQL
+                CREATE SCHEMA IF NOT EXISTS storage;
+                grant usage on schema storage to anon, authenticated, service_role;
+                alter default privileges in schema storage grant all on tables to anon, authenticated, service_role;
+                alter default privileges in schema storage grant all on functions to anon, authenticated, service_role;
+                alter default privileges in schema storage grant all on sequences to anon, authenticated, service_role;
+              EOSQL
+        - name: create-bucket
+          image: "quay.io/minio/mc:latest"
+          imagePullPolicy: IfNotPresent
+          command: [ "/bin/sh", "-ec" ]
+          args:
+            - |
+              mc alias set minio $(MINIO_HOST) $(MINIO_ACCESS_KEY) $(MINIO_SECRET_KEY)
+              mc mb -p minio/$(STORAGE_S3_BUCKET)
+          env:
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: minio
+                  key: MINIO_ACCESS_KEY
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: minio
+                  key: MINIO_SECRET_KEY
+            - name: MINIO_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: storage-test
+                  key: STORAGE_S3_ENDPOINT
+            - name: STORAGE_S3_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: storage-test
+                  key: STORAGE_S3_BUCKET
+      containers:
+        - name: main
+          image: "supabase/storage-api:v1.0.10"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DB_DRIVER
+              value: "postgres"
+            - name: DB_HOST
+              value: "postgres.default.svc.cluster.local"
+            - name: DB_NAME
+              value: "test"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_SSL
+              value: "disable"
+            - name: FILE_SIZE_LIMIT
+              valueFrom:
+                configMapKeyRef:
+                  name: storage-test
+                  key: FILE_SIZE_LIMIT
+            - name: STORAGE_BACKEND
+              valueFrom:
+                configMapKeyRef:
+                  name: storage-test
+                  key: STORAGE_BACKEND
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: "postgres"
+            - name: DATABASE_URL
+              value: $(DB_DRIVER)://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?search_path=storage&sslmode=$(DB_SSL)
+            - name: AUTH_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gotrue-test
+                  key: jwt_secret
+            - name: DB_SUPER_USER
+              value: "postgres"
+            - name: DB_INSTALL_ROLES
+              value: "false"
+            - name: STORAGE_S3_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: storage-test
+                  key: STORAGE_S3_BUCKET
+            - name: STORAGE_S3_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: storage-test
+                  key: STORAGE_S3_ENDPOINT
+            - name: STORAGE_S3_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: storage-test
+                  key: STORAGE_S3_REGION
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: minio
+                  key: MINIO_ACCESS_KEY
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: minio
+                  key: MINIO_SECRET_KEY
+            - name: IMAGE_TRANSFORMATION_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: storage-test
+                  key: IMAGE_TRANSFORMATION_ENABLED
+            - name: ANON_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: storage-test
+                  key: anon_key
+            - name: SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: storage-test
+                  key: service_key
+            - name: TENANT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: storage-test
+                  key: TENANT_ID
+          ports:
+            - name: http
+              containerPort: 5000
+              protocol: TCP
+          resources:
+            limits:
+              memory: 256Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+              httpHeaders:
+                - name: Authorization
+                  value: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiJ9.GgzQrVUWAlI5UwMSCcjkOm7tDcjg8RmMBtOiSlOe9IM
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+              httpHeaders:
+                - name: Authorization
+                  value: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiJ9.GgzQrVUWAlI5UwMSCcjkOm7tDcjg8RmMBtOiSlOe9IM
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1

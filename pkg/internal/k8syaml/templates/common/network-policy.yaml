@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: network-policy
+  namespace: "{{ .Stack.Namespace }}"
+  labels:
+    shaple.io/project.name: "{{ .Project.Name | toLabel  }}"
+    shaple.io/stack.name: "{{ .Stack.Name | toLabel  }}"
+    shaple.io/component: network-policy
+    shaple.io/project.id: "{{ .Project.ID }}"
+    shaple.io/stack.id: "{{ .Stack.ID }}"
+spec:
+  podSelector:
+    matchLabels:
+      shaple.io/project.id: "{{ .Project.ID }}"
+      shaple.io/stack.id: "{{ .Stack.ID }}"
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  - "{{ .Stack.Namespace }}"
+                  - default
+                  - prod
+                  - dev
+  egress:
+    - {}

@@ -1,0 +1,6 @@
+package constants
+
+const (
+	GotrueAnonKeyForTest  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiJ9.GgzQrVUWAlI5UwMSCcjkOm7tDcjg8RmMBtOiSlOe9IM"
+	GotrueAdminKeyForTest = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.eEgOdkCfkVwqEx0rsq1RT4LoSAX1cEZR3PzJ1Erm0oI"
+)

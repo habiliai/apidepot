@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: imgproxy
+  labels:
+    app: imgproxy
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: imgproxy
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: imgproxy
+        group: apidepot
+    spec:
+      containers:
+        - name: main
+          image: darthsim/imgproxy:v3.21.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: IMGPROXY_WRITE_TIMEOUT
+              value: "20"
+            - name: IMGPROXY_READ_TIMEOUT
+              value: "20"
+            - name: IMGPROXY_REQUESTS_QUEUE_SIZE
+              value: "24"
+            - name: IMGPROXY_LOCAL_FILESYSTEM_ROOT
+              value: /images
+            - name: IMGPROXY_USE_ETAG
+              value: "true"
+            - name: IMGPROXY_ENABLE_WEBP_DETECTION
+              value: "true"
+          volumeMounts:
+            - name: data
+              mountPath: /images
+              subPath: images
+      volumes:
+        - name: data
+          emptyDir:
+            sizeLimit: 10Gi

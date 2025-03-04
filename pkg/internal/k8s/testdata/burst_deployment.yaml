@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: burst
+  labels:
+    app: burst
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: burst
+  template:
+    metadata:
+      labels:
+        app: burst
+        group: testdata
+    spec:
+      terminationGracePeriodSeconds: 0
+      containers:
+        - name: main
+          image: busybox
+          command: ["sh", "-c"]
+          args:
+            - |
+              echo "Hello, world!"
+              touch a.txt
+              tail -f a.txt

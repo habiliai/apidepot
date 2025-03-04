@@ -1,0 +1,119 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: stripprefix
+  namespace: "{{ .Stack.Namespace }}"
+spec:
+  stripPrefix:
+    prefixes:
+      - "{{ .Paths.Auth }}"
+      - "{{ .Paths.Storage }}"
+      - "{{ .Paths.Postgrest }}"
+      {{- range $index, $vapi := .Vapis }}
+      - "{{ $.Paths.Vapi }}/{{ $vapi.Slug }}"
+      {{- end }}
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: cors-headers
+  namespace: "{{ .Stack.Namespace }}"
+spec:
+  headers:
+    accessControlAllowMethods:
+      - "GET"
+      - "OPTIONS"
+      - "PUT"
+      - "POST"
+      - "DELETE"
+      - "PATCH"
+      - "HEAD"
+    accessControlAllowHeaders:
+      - "*"
+    accessControlAllowOriginList:
+      - {{ .Stack.SiteURL }}
+    accessControlMaxAge: 90
+    addVaryHeader: true
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+  {{- if eq .Stack.Scheme "https" }}
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+  {{- else}}
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+  {{- end}}
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Stack.Namespace }}-cors-headers@kubernetescrd,{{ .Stack.Namespace }}-stripprefix@kubernetescrd
+  name: ingress
+  namespace: "{{ .Stack.Namespace }}"
+  labels:
+    shaple.io/project.name: "{{ .Project.Name | toLabel }}"
+    shaple.io/project.id: "{{ .Project.ID }}"
+    shaple.io/stack.name: "{{ .Stack.Name | toLabel }}"
+    shaple.io/stack.id: "{{ .Stack.ID }}"
+spec:
+{{- if eq .Stack.Scheme "https" }}
+  tls:
+    - hosts:
+        - {{ .Stack.Domain }}
+      secretName: {{ .Stack.Domain }}-tls
+{{- end}}
+  rules:
+    - host: "{{ .Stack.Domain }}"
+      http:
+        paths:
+          - pathType: Prefix
+            path: "{{ .Paths.Auth }}"
+            backend:
+              service:
+                name: auth
+                port:
+                  number: 9999
+          - pathType: Prefix
+            path: "{{ .Paths.Storage }}"
+            backend:
+              service:
+                name: storage
+                port:
+                  number: 5000
+          - pathType: Prefix
+            path: "{{ .Paths.Postgrest }}"
+            backend:
+              service:
+                name: postgrest
+                port:
+                  number: 3000
+          - pathType: Prefix
+            path: "{{ .Paths.PostgrestLive }}"
+            backend:
+              service:
+                name: postgrest
+                port:
+                  number: 3001
+          - pathType: Prefix
+            path: "{{ .Paths.PostgrestReady }}"
+            backend:
+              service:
+                name: postgrest
+                port:
+                  number: 3001
+          {{- range $index, $vapi := .Vapis }}
+          - pathType: Prefix
+            path: "{{ $.Paths.Vapi }}/{{ $vapi.Slug }}"
+            backend:
+              service:
+                name: vapi-{{ $vapi.PackageID }}-{{ $vapi.MajorVersion }}
+                port:
+                  number: 9000
+          {{- end }}
+          {{- range $index, $customVapi := .CustomVapis }}
+          - pathType: Prefix
+            path: "{{ $.Paths.Vapi }}/{{ $customVapi.Name }}"
+            backend:
+              service:
+                name: custom-vapi-{{ $customVapi.ID }}
+                port:
+                  number: 9000
+          {{- end }}

@@ -1,0 +1,6 @@
+server: 127.0.0.1:12390
+apiKey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiJ9.GgzQrVUWAlI5UwMSCcjkOm7tDcjg8RmMBtOiSlOe9IM
+timeout: 30s
+session:
+    appId: test123
+    appSecret: test123123

@@ -1,0 +1,552 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth
+  namespace: {{ .Stack.Namespace }}
+  labels:
+    shaple.io/project.name: "{{ .Project.Name | toLabel }}"
+    shaple.io/project.id: "{{ .Project.ID }}"
+    shaple.io/stack.name: "{{ .Stack.Name | toLabel }}"
+    shaple.io/stack.id: "{{ .Stack.ID }}"
+    shaple.io/component: auth
+    shaple.io/updated-at: "{{ now.Format "2006-01-02T15.04.05Z" }}"
+spec:
+  selector:
+    matchLabels:
+      shaple.io/project.id: "{{ .Project.ID }}"
+      shaple.io/stack.id: "{{ .Stack.ID }}"
+      shaple.io/component: auth
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        shaple.io/project.id: "{{ .Project.ID }}"
+        shaple.io/stack.id: "{{ .Stack.ID }}"
+        shaple.io/component: auth
+        shaple.io/pod: "auth-{{ .Stack.Hash }}"
+        shaple.io/updated-at: "{{ now.Format "2006-01-02T15.04.05Z" }}"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: "shaple.io/pod"
+                      operator: In
+                      values:
+                        - "auth-{{ .Stack.Hash }}"
+                topologyKey: "kubernetes.io/hostname"
+              weight: 90
+      nodeSelector:
+        stacks: "true"
+      initContainers:
+        - name: init-db
+          image: postgres:14-alpine
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: database
+                  key: db_host
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: database
+                  key: db_port
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: db_username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: db_password
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: db_name
+            - name: DB_URL
+              value: postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              until pg_isready -h $(DB_HOST) -p $(DB_PORT) -U $(DB_USER); do
+                echo "Waiting for database to start..."
+                sleep 1
+              done
+              echo "Database is ready"
+      containers:
+        - name: main
+          securityContext: {}
+          image: supabase/gotrue:v2.132.3
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DB_NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: DB_NAMESPACE
+            - name: API_EXTERNAL_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: API_EXTERNAL_URL
+            - name: DB_DRIVER
+              value: "postgres"
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: database
+                  key: db_host
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: db_name
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: database
+                  key: db_port
+            - name: DB_SSL
+              value: "disable"
+            - name: GOTRUE_API_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_API_HOST
+            - name: GOTRUE_API_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_API_PORT
+            - name: GOTRUE_DISABLE_SIGNUP
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_DISABLE_SIGNUP
+            - name: GOTRUE_EXTERNAL_EMAIL_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_EXTERNAL_EMAIL_ENABLED
+            - name: GOTRUE_EXTERNAL_PHONE_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_EXTERNAL_PHONE_ENABLED
+            - name: GOTRUE_JWT_ADMIN_ROLES
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_JWT_ADMIN_ROLES
+            - name: GOTRUE_JWT_AUD
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_JWT_AUD
+            - name: GOTRUE_JWT_DEFAULT_GROUP_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_JWT_DEFAULT_GROUP_NAME
+            - name: GOTRUE_JWT_EXP
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_JWT_EXP
+            - name: GOTRUE_MAILER_AUTOCONFIRM
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MAILER_AUTOCONFIRM
+            - name: GOTRUE_MAILER_URLPATHS_CONFIRMATION
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MAILER_URLPATHS_CONFIRMATION
+            - name: GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE
+            - name: GOTRUE_MAILER_URLPATHS_INVITE
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MAILER_URLPATHS_INVITE
+            - name: GOTRUE_MAILER_URLPATHS_RECOVERY
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MAILER_URLPATHS_RECOVERY
+            - name: GOTRUE_MAILER_SUBJECTS_CONFIRMATION
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MAILER_SUBJECTS_CONFIRMATION
+            - name: GOTRUE_MAILER_SUBJECTS_RECOVERY
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MAILER_SUBJECTS_RECOVERY
+            - name: GOTRUE_MAILER_SUBJECTS_INVITE
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MAILER_SUBJECTS_INVITE
+            - name: GOTRUE_MAILER_SUBJECTS_EMAIL_CHANGE
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MAILER_SUBJECTS_EMAIL_CHANGE
+            - name: GOTRUE_MAILER_SUBJECTS_MAGIC_LINK
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MAILER_SUBJECTS_MAGIC_LINK
+            - name: GOTRUE_MAILER_TEMPLATES_RECOVERY
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MAILER_TEMPLATES_RECOVERY
+            - name: GOTRUE_MAILER_TEMPLATES_INVITE
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MAILER_TEMPLATES_INVITE
+            - name: GOTRUE_MAILER_TEMPLATES_EMAIL_CHANGE
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MAILER_TEMPLATES_EMAIL_CHANGE
+            - name: GOTRUE_MAILER_TEMPLATES_CONFIRMATION
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MAILER_TEMPLATES_CONFIRMATION
+            - name: GOTRUE_MAILER_TEMPLATES_MAGIC_LINK
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MAILER_TEMPLATES_MAGIC_LINK
+            - name: GOTRUE_SITE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SITE_URL
+            - name: GOTRUE_SMS_AUTOCONFIRM
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMS_AUTOCONFIRM
+            - name: GOTRUE_SMTP_ADMIN_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMTP_ADMIN_EMAIL
+            - name: GOTRUE_SMTP_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMTP_HOST
+            - name: GOTRUE_SMTP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMTP_PORT
+            - name: GOTRUE_SMTP_SENDER_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMTP_SENDER_NAME
+            - name: GOTRUE_URI_ALLOW_LIST
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_URI_ALLOW_LIST
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: db_username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: db_password
+            - name: GOTRUE_DB_DATABASE_URL
+              value: $(DB_DRIVER)://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?search_path=$(DB_NAMESPACE)&sslmode=$(DB_SSL)
+            - name: GOTRUE_DB_DRIVER
+              value: $(DB_DRIVER)
+            - name: GOTRUE_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth
+                  key: jwt_secret
+            - name: GOTRUE_SMTP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: auth
+                  key: smtp_username
+            - name: GOTRUE_SMTP_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: auth
+                  key: smtp_password
+            - name: LOG_LEVEL
+              valueFrom:
+                  configMapKeyRef:
+                    name: auth
+                    key: LOG_LEVEL
+            - name: GOTRUE_EXTERNAL_IOS_BUNDLE_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_EXTERNAL_IOS_BUNDLE_ID
+            - name: GOTRUE_SMS_OTP_EXP
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMS_OTP_EXP
+            - name: GOTRUE_SMS_OTP_LENGTH
+              valueFrom:
+                  configMapKeyRef:
+                    name: auth
+                    key: GOTRUE_SMS_OTP_LENGTH
+            - name: GOTRUE_SMS_PROVIDER
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMS_PROVIDER
+            - name: GOTRUE_SMS_TWILIO_ACCOUNT_SID
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMS_TWILIO_ACCOUNT_SID
+            - name: GOTRUE_SMS_TWILIO_AUTH_TOKEN
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMS_TWILIO_AUTH_TOKEN
+            - name: GOTRUE_SMS_TWILIO_MESSAGE_SERVICE_SID
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMS_TWILIO_MESSAGE_SERVICE_SID
+            - name: GOTRUE_SMS_TWILIO_VERIFY_ACCOUNT_SID
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMS_TWILIO_VERIFY_ACCOUNT_SID
+            - name: GOTRUE_SMS_TWILIO_VERIFY_AUTH_TOKEN
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMS_TWILIO_VERIFY_AUTH_TOKEN
+            - name: GOTRUE_SMS_TWILIO_VERIFY_MESSAGE_SERVICE_SID
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMS_TWILIO_VERIFY_MESSAGE_SERVICE_SID
+            - name: GOTRUE_SMS_MESSAGEBIRD_ACCESS_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMS_MESSAGEBIRD_ACCESS_KEY
+            - name: GOTRUE_SMS_MESSAGEBIRD_ORIGINATOR
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMS_MESSAGEBIRD_ORIGINATOR
+            - name: GOTRUE_SMS_VONAGE_API_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMS_VONAGE_API_KEY
+            - name: GOTRUE_SMS_VONAGE_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth
+                  key: sms_vonage_api_secret
+            - name: GOTRUE_SMS_VONAGE_FROM
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMS_VONAGE_FROM
+            - name: GOTRUE_SMS_TWILIO_CONTENT_SID
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMS_TWILIO_CONTENT_SID
+            - name: GOTRUE_SMS_TEST_OTP
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMS_TEST_OTP
+            - name: GOTRUE_SMS_TEST_OTP_VALID_UNTIL
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMS_TEST_OTP_VALID_UNTIL
+            - name: GOTRUE_SECURITY_CAPTCHA_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SECURITY_CAPTCHA_ENABLED
+            - name: GOTRUE_SECURITY_CAPTCHA_PROVIDER
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SECURITY_CAPTCHA_PROVIDER
+            - name: GOTRUE_SECURITY_CAPTCHA_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth
+                  key: security_captcha_secret
+            - name: GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED
+            - name: GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL
+            - name: GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_REAUTHENTICATION
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_REAUTHENTICATION
+            - name: GOTRUE_SECURITY_MANUAL_LINKING_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SECURITY_MANUAL_LINKING_ENABLED
+            {{- range.Auth.External.OAuthProviders }}
+            - name: GOTRUE_EXTERNAL_{{ .Name | upper }}_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_EXTERNAL_{{ .Name | upper }}_ENABLED
+            - name: GOTRUE_EXTERNAL_{{ .Name | upper }}_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_EXTERNAL_{{ .Name | upper }}_CLIENT_ID
+            - name: GOTRUE_EXTERNAL_{{ .Name | upper }}_REDIRECT_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_EXTERNAL_OAUTH_REDIRECT_URI
+            - name: GOTRUE_EXTERNAL_{{ .Name | upper }}_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_EXTERNAL_{{ .Name | upper }}_URL
+            - name: GOTRUE_EXTERNAL_{{ .Name | upper }}_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth
+                  key: external_{{ .Name | lower }}_secret
+            {{- end}}
+            - name: GOTRUE_EXTERNAL_REDIRECT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_EXTERNAL_REDIRECT_URL
+            - name: GOTRUE_MFA_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MFA_ENABLED
+            - name: GOTRUE_MFA_CHALLENGE_EXPIRY_DURATION
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MFA_CHALLENGE_EXPIRY_DURATION
+            - name: GOTRUE_MFA_RATE_LIMIT_CHALLENGE_AND_VERIFY
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MFA_RATE_LIMIT_CHALLENGE_AND_VERIFY
+            - name: GOTRUE_MFA_MAX_ENROLLED_FACTORS
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MFA_MAX_ENROLLED_FACTORS
+            - name: GOTRUE_MFA_MAX_VERIFIED_FACTORS
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_MFA_MAX_VERIFIED_FACTORS
+            - name: GOTRUE_WEBHOOK_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_WEBHOOK_URL
+            - name: GOTRUE_WEBHOOK_RETRIES
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_WEBHOOK_RETRIES
+            - name: GOTRUE_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth
+                  key: webhook_secret
+            - name: GOTRUE_WEBHOOK_TIMEOUT_SEC
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_WEBHOOK_TIMEOUT_SEC
+            - name: GOTRUE_WEBHOOK_EVENTS
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_WEBHOOK_EVENTS
+            - name: GOTRUE_RATE_LIMIT_HEADER
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_RATE_LIMIT_HEADER
+            - name: GOTRUE_RATE_LIMIT_EMAIL_SENT
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_RATE_LIMIT_EMAIL_SENT
+            - name: GOTRUE_RATE_LIMIT_SMS_SENT
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_RATE_LIMIT_SMS_SENT
+            - name: GOTRUE_RATE_LIMIT_VERIFY
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_RATE_LIMIT_VERIFY
+            - name: GOTRUE_RATE_LIMIT_TOKEN_REFRESH
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_RATE_LIMIT_TOKEN_REFRESH
+            - name: GOTRUE_RATE_LIMIT_SSO
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_RATE_LIMIT_SSO
+            - name: GOTRUE_SMS_MAX_FREQUENCY
+              valueFrom:
+                configMapKeyRef:
+                  name: auth
+                  key: GOTRUE_SMS_MAX_FREQUENCY
+          ports:
+            - name: http
+              containerPort: 9999
+              protocol: TCP
