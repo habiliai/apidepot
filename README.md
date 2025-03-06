@@ -1,7 +1,8 @@
 <p align="center">
   <img alt="Shows a white agents.json Logo with a black background." src="https://www.habili.ai/habili-logo.png" width="50%">
 </p>
-<h1 align="center">API Depot for AI Agents by <b>Habili.ai</b></h1>
+
+<h1 align="center">API Depot for AI Agents by <i>Habili.ai</i></h1>
 
 [![Discord](https://img.shields.io/discord/1326403009470791690?style=flat&logo=discord&logoColor=white&label=discord&color=7289DA&link=https%3A%2F%2Fdiscord.gg%2FyDxRqhfE7h)](https://discord.gg/yDxRqhfE7h)
 [![Documentation](https://img.shields.io/badge/Documentation-📕-blue)](https://docs.habili.ai)
