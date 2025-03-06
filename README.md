@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="Shows a white agents.json Logo with a black background." src="https://www.habili.ai/habili-logo.png" width="50%">
+  <img alt="Shows a white agents.json Logo with a black background." src="https://u6mo491ntx4iwuoz.public.blob.vercel-storage.com/logo/bg_black_logo-tzo7s5eNJEWkXMEVBMME7ucb7BUN2L.png" width="full">
 </p>
 
 <h1 align="center">API Depot for AI Agents by <i>Habili.ai</i></h1>
