@@ -1,4 +1,13 @@
-# API Depot
+<p align="center">
+  <img alt="Shows a white agents.json Logo with a black background." src="https://www.habili.ai/habili-logo.png" width="50%">
+</p>
+<h1 align="center">API Depot for AI Agents by <b>Habili.ai</b></h1>
+
+[![Discord](https://img.shields.io/discord/1326403009470791690?style=flat&logo=discord&logoColor=white&label=discord&color=7289DA&link=https%3A%2F%2Fdiscord.gg%2FyDxRqhfE7h)](https://discord.gg/yDxRqhfE7h)
+[![Documentation](https://img.shields.io/badge/Documentation-📕-blue)](https://docs.habili.ai)
+[![Twitter Follow](https://img.shields.io/twitter/follow/habili_ai?style=social)](https://x.com/habili_ai)
+
+## Status
 API Depot is under active development. This open-source repository will be updated regularly. We are building it as a platform for co-hosting APIs for AI agents.
 
 ## Overview
